@@ -11,13 +11,13 @@ const USERS = [
 function PlaneIcon({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-// Quadratic bezier
+// Quadratic bezier point
 function qbez(t, a, b, c) {
   const m = 1 - t
   return m * m * a + 2 * m * t * b + t * t * c
@@ -27,54 +27,77 @@ function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
-// Control point offset for a natural arc
-function ctrl(x0, y0, x1, y1) {
+// Offset control point perpendicular to the line for a natural arc
+function arcCtrl(x0, y0, x1, y1, curvature = 0.28) {
   const mx = (x0 + x1) / 2
   const my = (y0 + y1) / 2
-  const dx = x1 - x0
-  const dy = y1 - y0
+  const dx = x1 - x0, dy = y1 - y0
   const len = Math.hypot(dx, dy) || 1
-  const k = len * 0.22
-  return { cx: mx - (dy / len) * k, cy: my + (dx / len) * k }
+  return {
+    cx: mx - (dy / len) * len * curvature,
+    cy: my + (dx / len) * len * curvature,
+  }
+}
+
+// Chip closest to the given point
+function nearestChip(refs, px, py) {
+  let bestId = null, bestDist = Infinity
+  for (const [id, el] of Object.entries(refs)) {
+    if (!el) continue
+    const r = el.getBoundingClientRect()
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2
+    const d = Math.hypot(cx - px, cy - py)
+    if (d < bestDist) { bestDist = d; bestId = Number(id) }
+  }
+  return bestId
+}
+
+// Center of a chip element
+function chipCenter(el) {
+  const r = el.getBoundingClientRect()
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
 }
 
 export default function App() {
-  const [message, setMessage] = useState('')
-  const [phase, setPhase]     = useState('idle') // 'idle' | 'drag' | 'fly'
-  const [planePos, setPlanePos] = useState(null)
-  const [origin,   setOrigin]   = useState(null)
-  const [hovered,  setHovered]  = useState(null)
-  const [sentTo,   setSentTo]   = useState(null)
+  const [message,  setMessage]  = useState('')
+  const [phase,    setPhase]    = useState('idle') // idle | drag | fly | return
+  const [planePos, setPlanePos] = useState(null)   // {x,y} viewport
+  const [origin,   setOrigin]   = useState(null)   // button center at drag start
+  const [aimId,    setAimId]    = useState(null)   // chip being aimed at
+  const [sentTo,   setSentTo]   = useState(null)   // chip that received message
   const [btnIcon,  setBtnIcon]  = useState(true)
 
-  const btnRef     = useRef(null)
-  const chipRefs   = useRef({})
-  const rafRef     = useRef(null)
-  const flyRef     = useRef(null)
+  const btnRef   = useRef(null)
+  const chipRefs = useRef({})
+  const rafRef   = useRef(null)
+  const flyRef   = useRef(null)
+
+  // ── Helpers ────────────────────────────────────────────────────
 
   const getBtnCenter = () => {
     const r = btnRef.current?.getBoundingClientRect()
     return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null
   }
 
-  const chipAt = (x, y) => {
-    for (const [id, el] of Object.entries(chipRefs.current)) {
-      if (!el) continue
-      const r = el.getBoundingClientRect()
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return Number(id)
-    }
-    return null
-  }
+  // Angle for plane icon: nose points from (px,py) toward (tx,ty)
+  // The SVG plane points upper-right by default, so add 45° offset
+  const aimAngle = useCallback((px, py, tx, ty) => {
+    return Math.atan2(ty - py, tx - px) * (180 / Math.PI) + 45
+  }, [])
+
+  // ── Pointer handlers ───────────────────────────────────────────
 
   const onPointerDown = useCallback((e) => {
     if (!message.trim()) return
     e.preventDefault()
+    cancelAnimationFrame(rafRef.current)
     const center = getBtnCenter()
     if (!center) return
     setOrigin(center)
     setPlanePos(center)
     setPhase('drag')
     setBtnIcon(false)
+    setAimId(nearestChip(chipRefs.current, center.x, center.y))
     e.currentTarget.setPointerCapture(e.pointerId)
   }, [message])
 
@@ -82,71 +105,128 @@ export default function App() {
     if (phase !== 'drag') return
     const x = e.clientX, y = e.clientY
     setPlanePos({ x, y })
-    setHovered(chipAt(x, y))
+    const id = nearestChip(chipRefs.current, x, y)
+    if (id !== null) setAimId(id)
   }, [phase])
 
   const onPointerUp = useCallback((e) => {
     if (phase !== 'drag') return
-    setPhase('idle')
-    setHovered(null)
+
     const x = e.clientX, y = e.clientY
-    const tid = chipAt(x, y)
+    const dragDist = origin ? Math.hypot(x - origin.x, y - origin.y) : 0
 
-    if (tid !== null && message.trim()) {
-      const r = chipRefs.current[tid].getBoundingClientRect()
-      const tx = r.left + r.width / 2
-      const ty = r.top + r.height / 2
-      const { cx, cy } = ctrl(x, y, tx, ty)
-      flyRef.current = { x0: x, y0: y, cx, cy, tx, ty, tid, start: null, dur: 380 }
-      setPhase('fly')
+    // Not enough drag → return plane to button
+    if (dragDist < 24 || !aimId) {
+      launchReturn(x, y)
+      return
+    }
 
-      const tick = (now) => {
-        const f = flyRef.current
-        if (!f.start) f.start = now
-        const raw = Math.min((now - f.start) / f.dur, 1)
-        const t   = easeInOut(raw)
-        setPlanePos({ x: qbez(t, f.x0, f.cx, f.tx), y: qbez(t, f.y0, f.cy, f.ty) })
-        if (raw < 1) {
-          rafRef.current = requestAnimationFrame(tick)
-        } else {
-          setPhase('idle')
-          setPlanePos(null)
-          setSentTo(f.tid)
-          setMessage('')
-          setTimeout(() => setBtnIcon(true), 140)
-          setTimeout(() => setSentTo(null), 2500)
-        }
-      }
-      rafRef.current = requestAnimationFrame(tick)
+    // Launch toward aimed chip
+    const chipEl = chipRefs.current[aimId]
+    if (!chipEl) { launchReturn(x, y); return }
+
+    const { x: tx, y: ty } = chipCenter(chipEl)
+    const { cx, cy } = arcCtrl(x, y, tx, ty)
+
+    flyRef.current = { x0: x, y0: y, cx, cy, tx, ty, tid: aimId, start: null, dur: 420 }
+    setPhase('fly')
+    setAimId(null)
+    rafRef.current = requestAnimationFrame(tickFly)
+  }, [phase, origin, aimId])
+
+  // ── Animations ─────────────────────────────────────────────────
+
+  function launchReturn(x, y) {
+    if (!origin) {
+      setPhase('idle'); setPlanePos(null); setAimId(null)
+      setTimeout(() => setBtnIcon(true), 80)
+      return
+    }
+    const { cx, cy } = arcCtrl(x, y, origin.x, origin.y, 0.2)
+    flyRef.current = { x0: x, y0: y, cx, cy, tx: origin.x, ty: origin.y, tid: null, start: null, dur: 260 }
+    setPhase('return')
+    setAimId(null)
+    rafRef.current = requestAnimationFrame(tickReturn)
+  }
+
+  function tickFly(now) {
+    const f = flyRef.current
+    if (!f.start) f.start = now
+    const raw = Math.min((now - f.start) / f.dur, 1)
+    const t   = easeInOut(raw)
+    setPlanePos({ x: qbez(t, f.x0, f.cx, f.tx), y: qbez(t, f.y0, f.cy, f.ty) })
+    if (raw < 1) {
+      rafRef.current = requestAnimationFrame(tickFly)
     } else {
+      // Plane reached target
+      setPhase('idle')
+      setPlanePos(null)
+      setSentTo(f.tid)
+      setMessage('')
+      setTimeout(() => setBtnIcon(true), 150)
+      setTimeout(() => setSentTo(null), 2600)
+    }
+  }
+
+  function tickReturn(now) {
+    const f = flyRef.current
+    if (!f.start) f.start = now
+    const raw = Math.min((now - f.start) / f.dur, 1)
+    const t   = easeInOut(raw)
+    setPlanePos({ x: qbez(t, f.x0, f.cx, f.tx), y: qbez(t, f.y0, f.cy, f.ty) })
+    if (raw < 1) {
+      rafRef.current = requestAnimationFrame(tickReturn)
+    } else {
+      setPhase('idle')
       setPlanePos(null)
       setTimeout(() => setBtnIcon(true), 80)
     }
-  }, [phase, message])
+  }
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
-  // Trail SVG path (drag phase only)
-  const trailPath = phase === 'drag' && origin && planePos
-    ? (() => {
-        const { cx, cy } = ctrl(origin.x, origin.y, planePos.x, planePos.y)
-        return `M${origin.x},${origin.y} Q${cx},${cy} ${planePos.x},${planePos.y}`
-      })()
-    : null
+  // ── Derived visuals ────────────────────────────────────────────
 
-  // Plane rotation angle
+  // Plane orientation
   const planeAngle = (() => {
     if (!planePos) return -45
-    if (phase === 'fly' && flyRef.current) {
-      const { tx, ty } = flyRef.current
-      return Math.atan2(ty - planePos.y, tx - planePos.x) * (180 / Math.PI) + 45
+
+    // During fly/return: point toward destination
+    if ((phase === 'fly' || phase === 'return') && flyRef.current) {
+      return aimAngle(planePos.x, planePos.y, flyRef.current.tx, flyRef.current.ty)
     }
-    if (origin) {
-      const dx = planePos.x - origin.x
-      const dy = planePos.y - origin.y
-      return Math.hypot(dx, dy) < 3 ? -45 : Math.atan2(dy, dx) * (180 / Math.PI) + 45
+
+    // During drag: point toward aimed chip
+    if (phase === 'drag' && aimId && chipRefs.current[aimId]) {
+      const { x: tx, y: ty } = chipCenter(chipRefs.current[aimId])
+      return aimAngle(planePos.x, planePos.y, tx, ty)
     }
+
     return -45
+  })()
+
+  // Trajectory arc path (drag and fly phases)
+  const trajectoryPath = (() => {
+    if (!planePos || phase === 'idle' || phase === 'return') return null
+
+    let tx, ty
+    if (phase === 'fly' && flyRef.current) {
+      tx = flyRef.current.tx; ty = flyRef.current.ty
+    } else if (phase === 'drag' && aimId && chipRefs.current[aimId]) {
+      const c = chipCenter(chipRefs.current[aimId])
+      tx = c.x; ty = c.y
+    } else return null
+
+    const { cx, cy } = arcCtrl(planePos.x, planePos.y, tx, ty)
+    return `M${planePos.x},${planePos.y} Q${cx},${cy} ${tx},${ty}`
+  })()
+
+  // Pullback line (shows drag charge: from plane back to button)
+  const pullPath = (() => {
+    if (phase !== 'drag' || !planePos || !origin) return null
+    const dist = Math.hypot(planePos.x - origin.x, planePos.y - origin.y)
+    if (dist < 10) return null
+    return `M${planePos.x},${planePos.y} L${origin.x},${origin.y}`
   })()
 
   const showPlane = phase !== 'idle' && planePos
@@ -154,22 +234,37 @@ export default function App() {
   return (
     <div className="app" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
 
-      {/* Curved dotted trail */}
-      {trailPath && (
-        <svg className="trail-svg">
-          <path
-            d={trailPath}
-            fill="none"
-            stroke="#1a1a1a"
-            strokeWidth="1.5"
-            strokeDasharray="4 5"
-            strokeLinecap="round"
-            opacity="0.22"
-          />
+      {/* SVG overlay: pullback line + trajectory arc */}
+      {(pullPath || trajectoryPath) && (
+        <svg className="overlay-svg">
+          {/* Pull-back elastic line */}
+          {pullPath && (
+            <path
+              d={pullPath}
+              fill="none"
+              stroke="#1a1a1a"
+              strokeWidth="1.5"
+              strokeDasharray="2 4"
+              strokeLinecap="round"
+              opacity="0.18"
+            />
+          )}
+          {/* Trajectory arc toward target */}
+          {trajectoryPath && (
+            <path
+              d={trajectoryPath}
+              fill="none"
+              stroke="#1a1a1a"
+              strokeWidth="1.5"
+              strokeDasharray="5 6"
+              strokeLinecap="round"
+              opacity="0.3"
+            />
+          )}
         </svg>
       )}
 
-      {/* Floating plane */}
+      {/* Plane following cursor / flying */}
       {showPlane && (
         <div
           className="fly-plane"
@@ -179,17 +274,17 @@ export default function App() {
             transform: `translate(-50%,-50%) rotate(${planeAngle}deg)`,
           }}
         >
-          <PlaneIcon size={22} />
+          <PlaneIcon size={24} />
         </div>
       )}
 
-      {/* User chips */}
+      {/* User chips — top of screen */}
       <div className="chips-zone">
         {USERS.map((u, i) => (
           <div
             key={u.id}
             ref={el => { chipRefs.current[u.id] = el }}
-            className={`chip${hovered === u.id ? ' chip--over' : ''}`}
+            className={`chip${aimId === u.id && phase === 'drag' ? ' chip--aimed' : ''}`}
             data-i={i}
           >
             <span className="avatar" style={{ background: u.color }}>{u.initials}</span>
@@ -201,7 +296,7 @@ export default function App() {
 
       <div className="mid-space" />
 
-      {/* Floating input block */}
+      {/* Floating input block — above bottom edge */}
       <div className="input-shell">
         <input
           className="msg-field"
@@ -222,7 +317,7 @@ export default function App() {
             className="btn-icon"
             style={{
               opacity:   btnIcon ? 1 : 0,
-              transform: btnIcon ? 'scale(1)' : 'scale(0.3) rotate(-30deg)',
+              transform: btnIcon ? 'scale(1)' : 'scale(0.2) rotate(-20deg)',
             }}
           >
             <PlaneIcon size={20} />
