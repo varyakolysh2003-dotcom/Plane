@@ -10,9 +10,11 @@ const USERS = [
 
 function PlaneIcon({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22 2L15 22L11 13L2 9L22 2Z"  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      {/* Top wing — solid */}
+      <path d="M22 2L2 9.5L11 13L22 2Z" />
+      {/* Bottom fold — slightly lighter to show the paper crease */}
+      <path d="M22 2L11 13L15 22L22 2Z" fillOpacity="0.55" />
     </svg>
   )
 }
@@ -229,8 +231,8 @@ export default function App() {
         ))}
       </div>
 
-      {/* Input sits in the vertical center of remaining space */}
-      <div className="center-area">
+      {/* Input — absolutely placed at 58% from top */}
+      <div className="input-anchor">
         <div className="input-shell">
           <input
             className="msg-field"
@@ -253,6 +255,10 @@ export default function App() {
               className="btn-icon"
               style={{
                 opacity:   btnIcon ? 1 : 0,
+                // During drag: instant rotation (no spring overshoot that could escape clip)
+                transition: phase === 'drag'
+                  ? 'opacity 0.18s ease, transform 0s'
+                  : undefined,
                 transform: btnIcon
                   ? `scale(1) rotate(${phase === 'drag' ? aimAngle : -45}deg)`
                   : 'scale(0.15) rotate(-20deg)',
@@ -264,7 +270,6 @@ export default function App() {
         </div>
       </div>
 
-      <div className="bottom-gap" />
     </div>
   )
 }

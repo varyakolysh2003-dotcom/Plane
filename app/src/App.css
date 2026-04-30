@@ -5,6 +5,7 @@
 }
 
 .app {
+  position: relative;          /* anchor for input-anchor */
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -111,25 +112,15 @@
   to   { opacity: 1; transform: translateX(-50%) scale(1)   translateY(0);   }
 }
 
-/* ─── Center area ─────────────────────────────────────────── */
+/* ─── Input anchor — fixed at 58% from top ───────────────── */
 
-/*
-  The center-area fills all space between the chips and the bottom-gap.
-  align-items: center vertically centers the input within that space.
-  With bottom-gap roughly equal to the chips height, the input lands
-  near the true vertical center of the screen.
-*/
-.center-area {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-}
-
-/* bottom-gap is roughly the same height as the chips zone so the
-   input sits near the geometric center of the screen */
-.bottom-gap {
-  flex: 0 0 160px;
+.input-anchor {
+  position: absolute;
+  top: 58%;
+  left: 20px;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 10;
 }
 
 /* ─── Input shell ─────────────────────────────────────────── */
@@ -178,6 +169,8 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.18);
   transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
   overflow: hidden;
+  /* Hard-clip to circle so the rotating icon cannot visually escape */
+  clip-path: circle(50%);
 }
 
 .send-btn:not(.send-btn--dim):hover {
