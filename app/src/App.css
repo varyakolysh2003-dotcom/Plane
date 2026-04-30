@@ -15,7 +15,7 @@
   overflow: hidden;
 }
 
-/* ─── SVG overlay ─────────────────────────────────────────────── */
+/* ─── Fixed overlays ──────────────────────────────────────── */
 
 .overlay-svg {
   position: fixed;
@@ -26,19 +26,15 @@
   z-index: 50;
 }
 
-/* ─── Floating plane ──────────────────────────────────────────── */
-
 .fly-plane {
   position: fixed;
   pointer-events: none;
   z-index: 60;
   color: #1a1a1a;
   line-height: 0;
-  /* Smooth rotation as target changes */
-  transition: none;
 }
 
-/* ─── User chips ──────────────────────────────────────────────── */
+/* ─── Chips ───────────────────────────────────────────────── */
 
 .chips-zone {
   display: flex;
@@ -49,10 +45,10 @@
   align-items: flex-start;
 }
 
-/* Stagger to match sketch's organic scatter */
+/* Stagger alternate chips downward for an organic, sketch-like scatter */
 .chip[data-i="1"],
 .chip[data-i="3"] {
-  margin-top: 28px;
+  margin-top: 26px;
 }
 
 .chip {
@@ -61,17 +57,16 @@
   align-items: center;
   gap: 9px;
   background: #fff;
-  border: 1.5px solid #ebebeb;
+  border: 1.5px solid #eaeaea;
   border-radius: 999px;
   padding: 7px 16px 7px 7px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s;
 }
 
-/* Aimed chip glows — shown during drag phase */
 .chip--aimed {
   border-color: #1a1a1a;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.13), 0 0 0 3px rgba(26,26,26,0.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 0 0 3px rgba(26,26,26,0.06);
   transform: scale(1.07);
 }
 
@@ -96,7 +91,6 @@
   white-space: nowrap;
 }
 
-/* "Отправлено" badge — pops above chip on delivery */
 .sent-tag {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -113,28 +107,35 @@
 }
 
 @keyframes badge-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.5) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1)   translateY(0);   }
 }
 
-/* ─── Spacer ──────────────────────────────────────────────────── */
+/* ─── Center area ─────────────────────────────────────────── */
 
-.mid-space {
+/*
+  The center-area fills all space between the chips and the bottom-gap.
+  align-items: center vertically centers the input within that space.
+  With bottom-gap roughly equal to the chips height, the input lands
+  near the true vertical center of the screen.
+*/
+.center-area {
   flex: 1;
-  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
 }
 
-/* ─── Floating input block ────────────────────────────────────── */
+/* bottom-gap is roughly the same height as the chips zone so the
+   input sits near the geometric center of the screen */
+.bottom-gap {
+  flex: 0 0 160px;
+}
+
+/* ─── Input shell ─────────────────────────────────────────── */
 
 .input-shell {
-  /* Float above bottom edge */
-  margin: 0 20px 48px;
+  width: 100%;
   background: #fff;
   border-radius: 20px;
   padding: 10px 10px 10px 20px;
@@ -160,7 +161,7 @@
   color: #c0c0c0;
 }
 
-/* ─── Send button ─────────────────────────────────────────────── */
+/* ─── Send button ─────────────────────────────────────────── */
 
 .send-btn {
   flex-shrink: 0;
@@ -176,6 +177,7 @@
   touch-action: none;
   box-shadow: 0 2px 10px rgba(0,0,0,0.18);
   transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+  overflow: hidden;
 }
 
 .send-btn:not(.send-btn--dim):hover {
@@ -184,8 +186,8 @@
 }
 
 .send-btn:not(.send-btn--dim):active {
+  transform: scale(0.9);
   cursor: grabbing;
-  transform: scale(0.88);
 }
 
 .send-btn--dim {
@@ -193,12 +195,12 @@
   box-shadow: none;
 }
 
-/* Plane icon inside button — springs in when reset */
+/* Icon inside the button — rotates during drag to show aim direction */
 .btn-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   transition:
     opacity   0.18s ease,
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
