@@ -221,7 +221,7 @@ export default function App() {
           <div
             key={u.id}
             ref={el => { chipRefs.current[u.id] = el }}
-            className={`chip${aimId === u.id ? ' chip--aimed' : ''}`}
+            className={`chip${aimId === u.id ? ' chip--aimed' : ''}${sentTo === u.id ? ' chip--bounce' : ''}`}
             data-i={i}
           >
             <span className="avatar" style={{ background: u.color }}>{u.initials}</span>
