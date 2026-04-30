@@ -1,0 +1,14 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
