@@ -195,8 +195,12 @@ export default function App() {
       const oy  = ibr.top  + ibr.height / 2
       const r   = el.getBoundingClientRect()
       const cx  = r.left + r.width / 2, cy = r.top + r.height / 2
-      const cp  = ctrlPt(ox, oy, cx, cy)
-      trajPath  = `M ${ox} ${oy} Q ${cp.x} ${cp.y} ${cx} ${cy}`
+      // Bow in the horizontal direction of the target so the curve adapts to aim angle
+      const hdx  = cx - ox
+      const bow  = Math.sign(hdx) * Math.min(Math.abs(hdx) * 0.12, 44)
+      const cpx  = (ox + cx) / 2 + bow
+      const cpy  = (oy + cy) / 2
+      trajPath  = `M ${ox} ${oy} Q ${cpx} ${cpy} ${cx} ${cy}`
     }
   }
 
@@ -222,9 +226,13 @@ export default function App() {
 
       {/* Plane that flies to the card after release */}
       {flyPlane && (
-        <div className={`plane-fly${flyPlane.leaving ? ' plane-fly--leaving' : ''}`} style={{
+        <div className="plane-fly" style={{
           left: flyPlane.x, top: flyPlane.y,
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
+          // Inline animation overrides the CSS rule so it always wins over plane-appear
+          animation: flyPlane.leaving
+            ? 'plane-vanish 0.28s cubic-bezier(0.4,0,1,1) both'
+            : undefined,
         }}>
           <PlaneIcon size={34} />
         </div>

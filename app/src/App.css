@@ -42,9 +42,6 @@
   to   { opacity: 1; scale: 1;   }
 }
 
-.plane-fly--leaving {
-  animation: plane-vanish 0.26s cubic-bezier(0.4, 0, 0.6, 1) both;
-}
 @keyframes plane-vanish {
   from { opacity: 1; scale: 1;   }
   to   { opacity: 0; scale: 0.4; }
