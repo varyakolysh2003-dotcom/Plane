@@ -134,7 +134,12 @@ export default function App() {
 
     setDragDelta({ x: 0, y: 0 })
     deltRef.current = { x: 0, y: 0 }
-    setFlyPlane({ x: p0.x, y: p0.y, angle: qbAngle(p0, ctrl, p2, 0) })
+
+    // Fixed angle: straight line from launch to target — nose always points at card.
+    // Icon nose is at the right at rotate(0), so atan2(dy,dx) needs no offset.
+    const flightAngle = Math.atan2(p2.y - p0.y, p2.x - p0.x) * 180 / Math.PI
+
+    setFlyPlane({ x: p0.x, y: p0.y, angle: flightAngle })
     setPhase('flying')
 
     const start = performance.now()
@@ -144,8 +149,7 @@ export default function App() {
       const raw = Math.min((now - start) / DURATION, 1)
       const t   = easeInOut(raw)
       const pt  = qbPt(p0, ctrl, p2, t)
-      const ang = qbAngle(p0, ctrl, p2, t)
-      setFlyPlane({ x: pt.x, y: pt.y, angle: ang })
+      setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle })
       if (raw < 1) {
         animRef.current = requestAnimationFrame(loop)
       } else {
