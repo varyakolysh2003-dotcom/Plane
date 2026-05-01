@@ -96,10 +96,44 @@
 
 /* ── Input block ─────────────────────────────────────────── */
 .input-block {
+  position: relative;   /* needed to stack input-row and input-plane */
+  width: 500px;
+  height: 44px;         /* fixed height so the block doesn't collapse */
+}
+
+/* The actual input + button row */
+.input-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 500px;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* Fade the row out while dragging */
+.input-block--drag .input-row {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Centered plane that replaces the input during drag */
+.input-plane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  color: #1a1a1a;
+}
+
+/* Fade the plane in while dragging */
+.input-block--drag .input-plane {
+  opacity: 1;
 }
 
 .msg-input {

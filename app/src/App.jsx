@@ -8,9 +8,9 @@ const USERS = [
   { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
-function PlaneIcon({ size = 20 }) {
+function PlaneIcon({ size = 20, style }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
       <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
       <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
@@ -56,6 +56,7 @@ export default function App() {
 
   // Refs for synchronous access inside event handlers / rAF
   const btnRef        = useRef(null)
+  const inputBlockRef = useRef(null)
   const cardRefs      = useRef({})
   const btnCenterRef  = useRef({ x: 0, y: 0 })
   const originRef     = useRef(null)
@@ -120,8 +121,9 @@ export default function App() {
       return
     }
 
-    // Start flight along bezier
-    const p0   = { x: btnCenterRef.current.x + deltRef.current.x, y: btnCenterRef.current.y + deltRef.current.y }
+    // Start flight from the plane's visual center (center of the input block)
+    const ibr  = inputBlockRef.current.getBoundingClientRect()
+    const p0   = { x: ibr.left + ibr.width / 2, y: ibr.top + ibr.height / 2 }
     const p2   = { x: nc.cx, y: nc.cy }
     const ctrl = ctrlPt(p0.x, p0.y, p2.x, p2.y)
     const targetUser = nc.user
@@ -158,33 +160,40 @@ export default function App() {
 
   // Derived values for rendering
   const planeX = btnCenterRef.current.x + dragDelta.x
-  const planeY = btnCenterRef.current.y + dragDelta.y
   const dragDist = Math.hypot(dragDelta.x, dragDelta.y)
-  const planeScale = phase === 'dragging' ? 1 + Math.min(dragDist / 65, 0.65) : 1
+  // Scale grows from 1× up to 1.8× as user drags further
+  const planeScale = 1 + Math.min(dragDist / 60, 0.8)
 
-  // Plane angle during drag: always points toward targeted card (above), never flips down
+  // Plane angle during drag: always points toward the aimed card (above), never flips down
   let dragAngle = -45 // default upper-right
   if (phase === 'dragging' && aimId) {
     const el = cardRefs.current[aimId]
-    if (el) {
-      const r = el.getBoundingClientRect()
-      dragAngle = Math.atan2((r.top + r.height/2) - planeY, (r.left + r.width/2) - planeX) * 180/Math.PI + 45
+    if (el && inputBlockRef.current) {
+      const ibr = inputBlockRef.current.getBoundingClientRect()
+      const ox  = ibr.left + ibr.width / 2
+      const oy  = ibr.top  + ibr.height / 2
+      const r   = el.getBoundingClientRect()
+      dragAngle = Math.atan2((r.top + r.height/2) - oy, (r.left + r.width/2) - ox) * 180/Math.PI + 45
     }
   }
 
-  // Trajectory path
+  // Trajectory: originates from the input block center (where the plane is shown)
   let trajPath = null
-  if (phase === 'dragging' && aimId) {
+  if (phase === 'dragging' && aimId && inputBlockRef.current) {
     const el = cardRefs.current[aimId]
     if (el) {
-      const r = el.getBoundingClientRect()
-      const cx = r.left + r.width/2, cy = r.top + r.height/2
-      const cp = ctrlPt(planeX, planeY, cx, cy)
-      trajPath = `M ${planeX} ${planeY} Q ${cp.x} ${cp.y} ${cx} ${cy}`
+      const ibr = inputBlockRef.current.getBoundingClientRect()
+      const ox  = ibr.left + ibr.width / 2
+      const oy  = ibr.top  + ibr.height / 2
+      const r   = el.getBoundingClientRect()
+      const cx  = r.left + r.width / 2, cy = r.top + r.height / 2
+      const cp  = ctrlPt(ox, oy, cx, cy)
+      trajPath  = `M ${ox} ${oy} Q ${cp.x} ${cp.y} ${cx} ${cy}`
     }
   }
 
-  const btnBgVisible = phase !== 'dragging' && phase !== 'flying'
+  const isDragging = phase === 'dragging'
+  const btnBgVisible    = phase !== 'dragging' && phase !== 'flying'
   const btnPlaneVisible = phase === 'idle' || phase === 'delivered'
 
   return (
@@ -222,7 +231,7 @@ export default function App() {
             ref={el => { cardRefs.current[u.id] = el }}
             className={[
               'user-card',
-              aimId === u.id   ? 'card-aim'    : '',
+              aimId === u.id    ? 'card-aim'    : '',
               bounceId === u.id ? 'card-bounce' : '',
             ].filter(Boolean).join(' ')}
             style={{ transform: `rotate(${u.tilt}deg)` }}
@@ -233,44 +242,48 @@ export default function App() {
         ))}
       </div>
 
-      {/* Input block */}
-      <div className="input-block">
-        <input
-          className="msg-input"
-          type="text"
-          placeholder="Type a message…"
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-        />
-        <button
-          ref={btnRef}
-          className="send-btn"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          aria-label="Hold and drag to send"
-          style={{
-            background: btnBgVisible ? '#1a1a1a' : 'transparent',
-            boxShadow:  btnBgVisible ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
-            color:      btnBgVisible ? '#fff' : '#1a1a1a',
-            cursor:     phase === 'dragging' ? 'grabbing' : 'grab',
-            transition: 'background 0.15s, box-shadow 0.15s',
-          }}
-        >
-          {btnPlaneVisible && <PlaneIcon size={20} />}
-        </button>
-      </div>
-
-      {/* Dragging plane — floats at dampened drag position */}
-      {phase === 'dragging' && (
-        <div className="plane-drag" style={{
-          left: planeX, top: planeY,
-          transform: `translate(-50%,-50%) rotate(${dragAngle}deg) scale(${planeScale})`,
-        }}>
-          <PlaneIcon size={20} />
+      {/* Input block — fades out during drag; centered plane takes its place */}
+      <div
+        ref={inputBlockRef}
+        className={`input-block${isDragging ? ' input-block--drag' : ''}`}
+      >
+        {/* Input row fades out when dragging */}
+        <div className="input-row">
+          <input
+            className="msg-input"
+            type="text"
+            placeholder="Type a message…"
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+          />
+          <button
+            ref={btnRef}
+            className="send-btn"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            aria-label="Hold and drag to send"
+            style={{
+              background: btnBgVisible ? '#1a1a1a' : 'transparent',
+              boxShadow:  btnBgVisible ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+              color:      btnBgVisible ? '#fff' : '#1a1a1a',
+              cursor:     isDragging ? 'grabbing' : 'grab',
+              transition: 'background 0.2s, box-shadow 0.2s',
+            }}
+          >
+            {btnPlaneVisible && <PlaneIcon size={20} />}
+          </button>
         </div>
-      )}
+
+        {/* Centered plane — fades in and scales up during drag */}
+        <div className="input-plane" aria-hidden="true">
+          <PlaneIcon size={20} style={{
+            transform: `rotate(${dragAngle}deg) scale(${isDragging ? planeScale : 1})`,
+            transition: isDragging ? 'transform 0.08s linear' : 'transform 0.3s ease',
+          }} />
+        </div>
+      </div>
     </div>
   )
 }
