@@ -8,11 +8,11 @@ const USERS = [
   { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
+// ion_paper-plane-sharp (Ionicons v5, filled, 512×512)
 function PlaneIcon({ size = 20, style }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
-      <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="currentColor" aria-hidden="true" style={style}>
+      <path d="M476.59 227.05l-.16-.07L49.35 49.84A23.56 23.56 0 0027.14 52 24.65 24.65 0 0016 72.59v113.29a24 24 0 0019.52 23.57l232.93 43.07a4 4 0 010 7.86L35.53 303.45A24 24 0 0016 327v113.38C16 454.41 26.52 464 36.9 464a23.43 23.43 0 009.4-2l.2-.1 427.09-174.38c.14-.06.26-.13.39-.19A23.84 23.84 0 00496 265.95a24 24 0 00-19.41-38.9z"/>
     </svg>
   )
 }
@@ -199,14 +199,18 @@ export default function App() {
   return (
     <div className="app">
 
-      {/* Full-screen SVG for trajectory */}
-      {trajPath && (
-        <svg className="overlay-svg" aria-hidden="true">
+      {/* Trajectory SVG — always mounted so opacity transition fires on show/hide */}
+      <svg
+        className="overlay-svg"
+        style={{ opacity: phase === 'dragging' && aimId ? 1 : 0 }}
+        aria-hidden="true"
+      >
+        {trajPath && (
           <path d={trajPath} fill="none" stroke="#1a1a1a"
             strokeWidth="1.5" strokeDasharray="5 4"
-            strokeLinecap="round" opacity="0.3" />
-        </svg>
-      )}
+            strokeLinecap="round" opacity="0.35" />
+        )}
+      </svg>
 
       {/* Plane that flies to the card after release */}
       {flyPlane && (
@@ -214,7 +218,7 @@ export default function App() {
           left: flyPlane.x, top: flyPlane.y,
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
         }}>
-          <PlaneIcon size={22} />
+          <PlaneIcon size={28} />
         </div>
       )}
 
@@ -247,7 +251,6 @@ export default function App() {
         ref={inputBlockRef}
         className={`input-block${isDragging ? ' input-block--drag' : ''}`}
       >
-        {/* Input row fades out when dragging */}
         <div className="input-row">
           <input
             className="msg-input"
@@ -269,18 +272,21 @@ export default function App() {
               boxShadow:  btnBgVisible ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
               color:      btnBgVisible ? '#fff' : '#1a1a1a',
               cursor:     isDragging ? 'grabbing' : 'grab',
-              transition: 'background 0.2s, box-shadow 0.2s',
+              transition: 'background 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
             }}
           >
-            {btnPlaneVisible && <PlaneIcon size={20} />}
+            {/* Always in DOM — fades in/out via CSS class */}
+            <span className={`send-btn-icon${btnPlaneVisible ? '' : ' send-btn-icon--hidden'}`}>
+              <PlaneIcon size={26} />
+            </span>
           </button>
         </div>
 
         {/* Centered plane — fades in and scales up during drag */}
         <div className="input-plane" aria-hidden="true">
-          <PlaneIcon size={20} style={{
+          <PlaneIcon size={26} style={{
             transform: `rotate(${dragAngle}deg) scale(${isDragging ? planeScale : 1})`,
-            transition: isDragging ? 'transform 0.08s linear' : 'transform 0.3s ease',
+            transition: isDragging ? 'transform 0.06s ease-out' : 'transform 0.25s ease-in-out',
           }} />
         </div>
       </div>
