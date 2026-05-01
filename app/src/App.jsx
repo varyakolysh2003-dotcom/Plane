@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import './App.css'
 
 const USERS = [
-  { id: 1, name: 'Алексей', initials: 'А', bg: '#ede9fe', fg: '#6d28d9', tilt: -4 },
-  { id: 2, name: 'Мария',   initials: 'М', bg: '#fce7f3', fg: '#be185d', tilt:  2 },
-  { id: 3, name: 'Саша',    initials: 'С', bg: '#dbeafe', fg: '#1d4ed8', tilt: -2 },
-  { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
+  { id: 1, name: 'Alexey', initials: 'A', bg: '#ede9fe', fg: '#6d28d9', tilt: -4 },
+  { id: 2, name: 'Maria',  initials: 'M', bg: '#fce7f3', fg: '#be185d', tilt:  2 },
+  { id: 3, name: 'Sasha',  initials: 'S', bg: '#dbeafe', fg: '#1d4ed8', tilt: -2 },
+  { id: 4, name: 'Nikita', initials: 'N', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
 // Custom filled paper-plane — nose points RIGHT at rotate(0).
@@ -141,7 +141,7 @@ export default function App() {
     const start = performance.now()
     const DURATION  = 700
     const VANISH_AT = 0.65  // easeInOut puts plane at ~83% of distance; fully faded by arrival
-    const VANISH_MS = 250
+    const VANISH_MS = 150
     let   vanishDone = false
 
     function loop(now) {
@@ -240,7 +240,7 @@ export default function App() {
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
           // Inline animation overrides the CSS rule so it always wins over plane-appear
           animation: flyPlane.leaving
-            ? 'plane-vanish 0.25s cubic-bezier(0.4,0,1,1) both'
+            ? 'plane-vanish 0.15s cubic-bezier(0.4,0,1,1) both'
             : undefined,
         }}>
           <PlaneIcon size={34} />
@@ -252,7 +252,7 @@ export default function App() {
         <div className="toast" style={toastLeaving
           ? { animation: 'toast-out 0.35s ease-in both' }
           : undefined
-        }>Отправлено {deliveredTo.name}</div>
+        }>Sent to {deliveredTo.name}</div>
       )}
 
       {/* User cards */}
