@@ -8,11 +8,15 @@ const USERS = [
   { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
-// ion_paper-plane-sharp (Ionicons v5, filled, 512×512)
+// Custom filled paper-plane — nose points RIGHT at rotate(0).
+// Two-tone fill: main body + underside fold slightly dimmed.
 function PlaneIcon({ size = 20, style }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 512 512" fill="currentColor" aria-hidden="true" style={style}>
-      <path d="M476.59 227.05l-.16-.07L49.35 49.84A23.56 23.56 0 0027.14 52 24.65 24.65 0 0016 72.59v113.29a24 24 0 0019.52 23.57l232.93 43.07a4 4 0 010 7.86L35.53 303.45A24 24 0 0016 327v113.38C16 454.41 26.52 464 36.9 464a23.43 23.43 0 009.4-2l.2-.1 427.09-174.38c.14-.06.26-.13.39-.19A23.84 23.84 0 00496 265.95a24 24 0 00-19.41-38.9z"/>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={style}>
+      {/* main body: tail-top → nose → tail-bottom → inner crease */}
+      <path d="M2 3L22 12L2 21L6 12Z"/>
+      {/* underside fold — gives paper-plane depth */}
+      <path d="M6 12L2 21L10 17Z" opacity="0.45"/>
     </svg>
   )
 }
@@ -28,15 +32,14 @@ function qbAngle(p0, p1, p2, t) {
   const s = 1 - t
   const dx = 2*s*(p1.x-p0.x) + 2*t*(p2.x-p1.x)
   const dy = 2*s*(p1.y-p0.y) + 2*t*(p2.y-p1.y)
-  return Math.atan2(dy, dx) * 180 / Math.PI + 45
+  return Math.atan2(dy, dx) * 180 / Math.PI
 }
 
-// Control point for a gentle rightward arc
+// Control point — same horizontal-bow formula used by the dashed trajectory
 function ctrlPt(x1, y1, x2, y2) {
-  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx, dy)
-  if (len < 1) return { x: (x1+x2)/2, y: (y1+y2)/2 }
-  const c = Math.min(len * 0.2, 55)
-  return { x: (x1+x2)/2 + (-dy/len)*c, y: (y1+y2)/2 + (dx/len)*c }
+  const hdx = x2 - x1
+  const bow = Math.sign(hdx) * Math.min(Math.abs(hdx) * 0.12, 44)
+  return { x: (x1+x2)/2 + bow, y: (y1+y2)/2 }
 }
 
 // Ease in-out cubic
@@ -53,6 +56,7 @@ export default function App() {
   const [flyPlane, setFlyPlane]     = useState(null)   // {x,y,angle} fixed-position plane
   const [deliveredTo, setDeliveredTo] = useState(null) // user object
   const [bounceId, setBounceId]     = useState(null)
+  const [toastLeaving, setToastLeaving] = useState(false)
 
   // Refs for synchronous access inside event handlers / rAF
   const btnRef        = useRef(null)
@@ -130,42 +134,55 @@ export default function App() {
 
     setDragDelta({ x: 0, y: 0 })
     deltRef.current = { x: 0, y: 0 }
+
     setFlyPlane({ x: p0.x, y: p0.y, angle: qbAngle(p0, ctrl, p2, 0) })
     setPhase('flying')
 
     const start = performance.now()
-    const DURATION = 700
+    const DURATION  = 700
+    const VANISH_AT = 0.65  // easeInOut puts plane at ~83% of distance; fully faded by arrival
+    const VANISH_MS = 250
+    let   vanishDone = false
 
     function loop(now) {
       const raw = Math.min((now - start) / DURATION, 1)
       const t   = easeInOut(raw)
       const pt  = qbPt(p0, ctrl, p2, t)
       const ang = qbAngle(p0, ctrl, p2, t)
-      setFlyPlane({ x: pt.x, y: pt.y, angle: ang })
+
+      if (raw >= VANISH_AT && !vanishDone) {
+        vanishDone = true
+        setFlyPlane({ x: pt.x, y: pt.y, angle: ang, leaving: true })
+      } else if (!vanishDone) {
+        setFlyPlane({ x: pt.x, y: pt.y, angle: ang })
+      }
+
       if (raw < 1) {
         animRef.current = requestAnimationFrame(loop)
       } else {
-        // Arrived
-        setFlyPlane(null)
+        // Plane is already fading — trigger card bounce and cleanup
+        const remaining = VANISH_MS - DURATION * (1 - VANISH_AT)
         setPhase('delivered')
         setDeliveredTo(targetUser)
+        setToastLeaving(false)
         setBounceId(targetUser.id)
         setMessage('')
+        setTimeout(() => setFlyPlane(null), Math.max(remaining, 0))
         setTimeout(() => setBounceId(null), 600)
-        setTimeout(() => { setDeliveredTo(null); setPhase('idle') }, 2000)
+        setTimeout(() => setToastLeaving(true), 1650)
+        setTimeout(() => { setToastLeaving(false); setDeliveredTo(null); setPhase('idle') }, 2000)
       }
     }
     animRef.current = requestAnimationFrame(loop)
   }
 
   // Derived values for rendering
-  const planeX = btnCenterRef.current.x + dragDelta.x
   const dragDist = Math.hypot(dragDelta.x, dragDelta.y)
   // Scale grows from 1× up to 1.8× as user drags further
   const planeScale = 1 + Math.min(dragDist / 60, 0.8)
 
   // Plane angle during drag: always points toward the aimed card (above), never flips down
-  let dragAngle = -45 // default upper-right
+  let dragAngle = -90 // default: point upward toward cards
   if (phase === 'dragging' && aimId) {
     const el = cardRefs.current[aimId]
     if (el && inputBlockRef.current) {
@@ -173,7 +190,7 @@ export default function App() {
       const ox  = ibr.left + ibr.width / 2
       const oy  = ibr.top  + ibr.height / 2
       const r   = el.getBoundingClientRect()
-      dragAngle = Math.atan2((r.top + r.height/2) - oy, (r.left + r.width/2) - ox) * 180/Math.PI + 45
+      dragAngle = Math.atan2((r.top + r.height/2) - oy, (r.left + r.width/2) - ox) * 180/Math.PI
     }
   }
 
@@ -187,8 +204,12 @@ export default function App() {
       const oy  = ibr.top  + ibr.height / 2
       const r   = el.getBoundingClientRect()
       const cx  = r.left + r.width / 2, cy = r.top + r.height / 2
-      const cp  = ctrlPt(ox, oy, cx, cy)
-      trajPath  = `M ${ox} ${oy} Q ${cp.x} ${cp.y} ${cx} ${cy}`
+      // Bow in the horizontal direction of the target so the curve adapts to aim angle
+      const hdx  = cx - ox
+      const bow  = Math.sign(hdx) * Math.min(Math.abs(hdx) * 0.12, 44)
+      const cpx  = (ox + cx) / 2 + bow
+      const cpy  = (oy + cy) / 2
+      trajPath  = `M ${ox} ${oy} Q ${cpx} ${cpy} ${cx} ${cy}`
     }
   }
 
@@ -217,14 +238,21 @@ export default function App() {
         <div className="plane-fly" style={{
           left: flyPlane.x, top: flyPlane.y,
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
+          // Inline animation overrides the CSS rule so it always wins over plane-appear
+          animation: flyPlane.leaving
+            ? 'plane-vanish 0.25s cubic-bezier(0.4,0,1,1) both'
+            : undefined,
         }}>
           <PlaneIcon size={34} />
         </div>
       )}
 
-      {/* Toast */}
+      {/* Toast — kept in DOM during fade-out via toastLeaving */}
       {deliveredTo && (
-        <div className="toast">Отправлено {deliveredTo.name}</div>
+        <div className="toast" style={toastLeaving
+          ? { animation: 'toast-out 0.35s ease-in both' }
+          : undefined
+        }>Отправлено {deliveredTo.name}</div>
       )}
 
       {/* User cards */}
@@ -280,6 +308,11 @@ export default function App() {
               <PlaneIcon size={30} />
             </span>
           </button>
+        </div>
+
+        {/* Drag hint — absolutely positioned, never shifts layout */}
+        <div className={`drag-hint${isDragging ? ' drag-hint--visible' : ''}`} aria-hidden="true">
+          Release to send
         </div>
 
         {/* Centered plane — fades in and scales up during drag */}
