@@ -56,6 +56,7 @@ export default function App() {
   const [flyPlane, setFlyPlane]     = useState(null)   // {x,y,angle} fixed-position plane
   const [deliveredTo, setDeliveredTo] = useState(null) // user object
   const [bounceId, setBounceId]     = useState(null)
+  const [toastLeaving, setToastLeaving] = useState(false)
 
   // Refs for synchronous access inside event handlers / rAF
   const btnRef        = useRef(null)
@@ -139,8 +140,8 @@ export default function App() {
 
     const start = performance.now()
     const DURATION  = 700
-    const VANISH_AT = 0.80  // easeInOut puts plane at ~97% of distance at this raw time
-    const VANISH_MS = 300
+    const VANISH_AT = 0.65  // easeInOut puts plane at ~83% of distance; fully faded by arrival
+    const VANISH_MS = 250
     let   vanishDone = false
 
     function loop(now) {
@@ -163,11 +164,13 @@ export default function App() {
         const remaining = VANISH_MS - DURATION * (1 - VANISH_AT)
         setPhase('delivered')
         setDeliveredTo(targetUser)
+        setToastLeaving(false)
         setBounceId(targetUser.id)
         setMessage('')
         setTimeout(() => setFlyPlane(null), Math.max(remaining, 0))
         setTimeout(() => setBounceId(null), 600)
-        setTimeout(() => { setDeliveredTo(null); setPhase('idle') }, 2000)
+        setTimeout(() => setToastLeaving(true), 1650)
+        setTimeout(() => { setToastLeaving(false); setDeliveredTo(null); setPhase('idle') }, 2000)
       }
     }
     animRef.current = requestAnimationFrame(loop)
@@ -237,16 +240,19 @@ export default function App() {
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
           // Inline animation overrides the CSS rule so it always wins over plane-appear
           animation: flyPlane.leaving
-            ? 'plane-vanish 0.30s cubic-bezier(0.4,0,1,1) both'
+            ? 'plane-vanish 0.25s cubic-bezier(0.4,0,1,1) both'
             : undefined,
         }}>
           <PlaneIcon size={34} />
         </div>
       )}
 
-      {/* Toast */}
+      {/* Toast — kept in DOM during fade-out via toastLeaving */}
       {deliveredTo && (
-        <div className="toast">Отправлено {deliveredTo.name}</div>
+        <div className="toast" style={toastLeaving
+          ? { animation: 'toast-out 0.35s ease-in both' }
+          : undefined
+        }>Отправлено {deliveredTo.name}</div>
       )}
 
       {/* User cards */}
@@ -302,6 +308,11 @@ export default function App() {
               <PlaneIcon size={30} />
             </span>
           </button>
+        </div>
+
+        {/* Drag hint — absolutely positioned, never shifts layout */}
+        <div className={`drag-hint${isDragging ? ' drag-hint--visible' : ''}`} aria-hidden="true">
+          Release to send
         </div>
 
         {/* Centered plane — fades in and scales up during drag */}
