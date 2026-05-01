@@ -28,7 +28,7 @@ function qbAngle(p0, p1, p2, t) {
   const s = 1 - t
   const dx = 2*s*(p1.x-p0.x) + 2*t*(p2.x-p1.x)
   const dy = 2*s*(p1.y-p0.y) + 2*t*(p2.y-p1.y)
-  return Math.atan2(dy, dx) * 180 / Math.PI + 45
+  return Math.atan2(dy, dx) * 180 / Math.PI
 }
 
 // Control point for a gentle rightward arc
