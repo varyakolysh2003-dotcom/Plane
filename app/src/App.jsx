@@ -1,10 +1,9 @@
 import { useState, useRef } from 'react'
 import './App.css'
 
-function PaperPlane({ style }) {
+function PaperPlane() {
   return (
     <svg
-      style={style}
       width="20"
       height="20"
       viewBox="0 0 24 24"
@@ -25,31 +24,16 @@ const USERS = [
   { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
-function UserCard({ user, index }) {
-  return (
-    // Outer wrapper holds the tilt — isolated from the hover animation
-    <div
-      className="user-card-tilt"
-      style={{
-        transform: `rotate(${user.tilt}deg)`,
-        animationDelay: `${index * 0.07}s`,
-      }}
-    >
-      <div className="user-card">
-        <div className="user-avatar" style={{ background: user.bg, color: user.fg }}>
-          {user.initials}
-        </div>
-        <span className="user-name">{user.name}</span>
-      </div>
-    </div>
-  )
-}
-
 export default function App() {
   const [message, setMessage] = useState('')
-  const [drag, setDrag]       = useState(null)
-  const buttonRef             = useRef(null)
-  const originRef             = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [planeX, setPlaneX] = useState(0)
+  const [planeY, setPlaneY] = useState(0)
+  const [planeAngle, setPlaneAngle] = useState(0)
+
+  // useRef so handlePointerMove/Up always read the latest origin, never stale
+  const originRef  = useRef(null)
+  const buttonRef  = useRef(null)
 
   function handleSend() {
     if (message.trim()) setMessage('')
@@ -59,47 +43,61 @@ export default function App() {
     e.preventDefault()
     buttonRef.current.setPointerCapture(e.pointerId)
     originRef.current = { x: e.clientX, y: e.clientY }
-    setDrag({ x: 0, y: 0 })
+    setIsDragging(true)
+    setPlaneX(0)
+    setPlaneY(0)
+    setPlaneAngle(0)
   }
 
   function handlePointerMove(e) {
     if (!originRef.current) return
-    const MAX = 55
-    const dx  = e.clientX - originRef.current.x
-    const dy  = e.clientY - originRef.current.y
-    setDrag({
-      x: Math.max(-MAX, Math.min(MAX, dx)),
-      y: Math.max(-MAX, Math.min(MAX, dy)),
-    })
+    const MAX = 60
+    const dx = Math.max(-MAX, Math.min(MAX, e.clientX - originRef.current.x))
+    const dy = Math.max(-MAX, Math.min(MAX, e.clientY - originRef.current.y))
+    // Plane nose is upper-right by default; +45° aligns it with the drag vector
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 45
+    setPlaneX(dx * 0.65)
+    setPlaneY(dy * 0.65)
+    setPlaneAngle(angle)
   }
 
-  function handlePointerUp() {
+  function handlePointerUp(e) {
     if (!originRef.current) return
-    const { x, y } = drag
+    const dx = planeX / 0.65
+    const dy = planeY / 0.65
+    const dist = Math.hypot(dx, dy)
     originRef.current = null
-    setDrag(null)
-    if (Math.hypot(x, y) > 28) handleSend()
+    setIsDragging(false)
+    setPlaneX(0)
+    setPlaneY(0)
+    setPlaneAngle(0)
+    if (dist > 25) handleSend()
   }
-
-  const isDragging = drag !== null
-
-  // SVG plane nose points upper-right (~-45°). Add 45° offset so it aligns with drag angle.
-  const planeAngle = isDragging ? Math.atan2(drag.y, drag.x) * (180 / Math.PI) + 45 : 0
-  const planeX     = isDragging ? drag.x * 0.45 : 0
-  const planeY     = isDragging ? drag.y * 0.45 : 0
 
   return (
     <div className="app">
       <div className="chat-area">
         <div className="user-cards">
           {USERS.map((user, i) => (
-            <UserCard key={user.id} user={user} index={i} />
+            <div
+              key={user.id}
+              className="user-card-wrap"
+              style={{ transform: `rotate(${user.tilt}deg)`, animationDelay: `${i * 0.08}s` }}
+            >
+              <div className="user-card">
+                <div className="user-avatar" style={{ background: user.bg, color: user.fg }}>
+                  {user.initials}
+                </div>
+                <span className="user-name">{user.name}</span>
+              </div>
+            </div>
           ))}
         </div>
       </div>
 
       <div className="input-bar">
-        <div className="input-wrapper">
+        {/* Inline style as fallback in case CSS is overridden */}
+        <div className="input-wrapper" style={{ maxWidth: '500px', width: '100%' }}>
           <input
             className="message-input"
             type="text"
@@ -110,21 +108,30 @@ export default function App() {
           />
           <button
             ref={buttonRef}
-            className={`send-button${isDragging ? ' is-dragging' : ''}`}
+            className="send-button"
             aria-label="Send message"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            onClick={isDragging ? undefined : handleSend}
+            onClick={handleSend}
+            style={{
+              // Inline style overrides CSS class — background gone while dragging
+              background:  isDragging ? 'transparent' : '#1a1a1a',
+              boxShadow:   isDragging ? 'none'        : '0 2px 8px rgba(0,0,0,0.15)',
+              color:       isDragging ? '#1a1a1a'     : '#fff',
+              transition:  isDragging ? 'none' : 'background 0.15s, box-shadow 0.15s',
+            }}
           >
-            <PaperPlane
+            <span
               style={{
+                display:    'inline-flex',
                 transform:  `translate(${planeX}px, ${planeY}px) rotate(${planeAngle}deg)`,
                 transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.5, 0.64, 1)',
-                color:      isDragging ? '#1a1a1a' : 'currentColor',
               }}
-            />
+            >
+              <PaperPlane />
+            </span>
           </button>
         </div>
       </div>
