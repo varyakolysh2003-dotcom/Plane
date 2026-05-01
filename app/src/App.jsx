@@ -35,12 +35,11 @@ function qbAngle(p0, p1, p2, t) {
   return Math.atan2(dy, dx) * 180 / Math.PI
 }
 
-// Control point for a gentle rightward arc
+// Control point — same horizontal-bow formula used by the dashed trajectory
 function ctrlPt(x1, y1, x2, y2) {
-  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx, dy)
-  if (len < 1) return { x: (x1+x2)/2, y: (y1+y2)/2 }
-  const c = Math.min(len * 0.2, 55)
-  return { x: (x1+x2)/2 + (-dy/len)*c, y: (y1+y2)/2 + (dx/len)*c }
+  const hdx = x2 - x1
+  const bow = Math.sign(hdx) * Math.min(Math.abs(hdx) * 0.12, 44)
+  return { x: (x1+x2)/2 + bow, y: (y1+y2)/2 }
 }
 
 // Ease in-out cubic
@@ -135,30 +134,26 @@ export default function App() {
     setDragDelta({ x: 0, y: 0 })
     deltRef.current = { x: 0, y: 0 }
 
-    // Fixed angle: straight line from launch to target — nose always points at card.
-    // Icon nose is at the right at rotate(0), so atan2(dy,dx) needs no offset.
-    const flightAngle = Math.atan2(p2.y - p0.y, p2.x - p0.x) * 180 / Math.PI
-
-    setFlyPlane({ x: p0.x, y: p0.y, angle: flightAngle })
+    setFlyPlane({ x: p0.x, y: p0.y, angle: qbAngle(p0, ctrl, p2, 0) })
     setPhase('flying')
 
     const start = performance.now()
-    const DURATION    = 700
-    const VANISH_AT   = 0.80  // start fade at 80% — easeInOut puts plane at ~97% of distance
-    const VANISH_MS   = 300   // fade duration
-    let   vanishDone  = false
+    const DURATION  = 700
+    const VANISH_AT = 0.80  // easeInOut puts plane at ~97% of distance at this raw time
+    const VANISH_MS = 300
+    let   vanishDone = false
 
     function loop(now) {
       const raw = Math.min((now - start) / DURATION, 1)
       const t   = easeInOut(raw)
       const pt  = qbPt(p0, ctrl, p2, t)
+      const ang = qbAngle(p0, ctrl, p2, t)
 
       if (raw >= VANISH_AT && !vanishDone) {
         vanishDone = true
-        // Freeze at current position and start the vanish animation
-        setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle, leaving: true })
+        setFlyPlane({ x: pt.x, y: pt.y, angle: ang, leaving: true })
       } else if (!vanishDone) {
-        setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle })
+        setFlyPlane({ x: pt.x, y: pt.y, angle: ang })
       }
 
       if (raw < 1) {
@@ -184,7 +179,7 @@ export default function App() {
   const planeScale = 1 + Math.min(dragDist / 60, 0.8)
 
   // Plane angle during drag: always points toward the aimed card (above), never flips down
-  let dragAngle = -45 // default upper-right
+  let dragAngle = -90 // default: point upward toward cards
   if (phase === 'dragging' && aimId) {
     const el = cardRefs.current[aimId]
     if (el && inputBlockRef.current) {
@@ -192,7 +187,7 @@ export default function App() {
       const ox  = ibr.left + ibr.width / 2
       const oy  = ibr.top  + ibr.height / 2
       const r   = el.getBoundingClientRect()
-      dragAngle = Math.atan2((r.top + r.height/2) - oy, (r.left + r.width/2) - ox) * 180/Math.PI + 45
+      dragAngle = Math.atan2((r.top + r.height/2) - oy, (r.left + r.width/2) - ox) * 180/Math.PI
     }
   }
 
