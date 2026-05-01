@@ -12,6 +12,8 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* ── Chat area ─────────────────────────────────────────── */
+
 .chat-area {
   flex: 1;
   display: flex;
@@ -21,19 +23,83 @@
   overflow-y: auto;
 }
 
-.empty-state {
-  color: #bbb;
-  font-size: 14px;
+/* ── User cards ─────────────────────────────────────────── */
+
+.user-cards {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
 }
+
+/*
+ * user-card-wrap: holds the per-card tilt via inline transform.
+ * Fades in on load; does not animate transform so the inner
+ * card's hover lift transition never conflicts.
+ */
+.user-card-wrap {
+  animation: card-fadein 0.35s ease both;
+}
+
+@keyframes card-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px 14px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  cursor: default;
+  user-select: none;
+  /* Spring easing gives the tiny overshoot that reads as a bounce */
+  transition: transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+
+.user-card-wrap:hover .user-card {
+  transform: translateY(-4px);
+  box-shadow: 0 7px 20px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.user-name {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+/* ── Input bar ──────────────────────────────────────────── */
 
 .input-bar {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  justify-content: center;
   padding: 16px 20px;
   background: #fff;
   border-top: 1px solid #e8e8e8;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 500px;
+  width: 100%;
 }
 
 .message-input {
@@ -58,28 +124,24 @@
   background: #fff;
 }
 
+/* ── Send button ─────────────────────────────────────────── */
+
 .send-button {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
   border-radius: 50%;
   border: none;
+  /* background/shadow are overridden by inline style during drag */
   background: #1a1a1a;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  touch-action: none;
 }
 
 .send-button:hover {
   background: #333;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.send-button:active {
-  transform: scale(0.93);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
