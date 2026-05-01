@@ -218,7 +218,7 @@ export default function App() {
           left: flyPlane.x, top: flyPlane.y,
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
         }}>
-          <PlaneIcon size={28} />
+          <PlaneIcon size={34} />
         </div>
       )}
 
@@ -277,14 +277,14 @@ export default function App() {
           >
             {/* Always in DOM — fades in/out via CSS class */}
             <span className={`send-btn-icon${btnPlaneVisible ? '' : ' send-btn-icon--hidden'}`}>
-              <PlaneIcon size={26} />
+              <PlaneIcon size={30} />
             </span>
           </button>
         </div>
 
         {/* Centered plane — fades in and scales up during drag */}
         <div className="input-plane" aria-hidden="true">
-          <PlaneIcon size={26} style={{
+          <PlaneIcon size={30} style={{
             transform: `rotate(${dragAngle}deg) scale(${isDragging ? planeScale : 1})`,
             transition: isDragging ? 'transform 0.06s ease-out' : 'transform 0.25s ease-in-out',
           }} />
