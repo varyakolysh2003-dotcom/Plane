@@ -153,12 +153,13 @@ export default function App() {
       if (raw < 1) {
         animRef.current = requestAnimationFrame(loop)
       } else {
-        // Arrived
-        setFlyPlane(null)
+        // Arrived — play exit animation before removing from DOM
+        setFlyPlane(prev => ({ ...prev, leaving: true }))
         setPhase('delivered')
         setDeliveredTo(targetUser)
         setBounceId(targetUser.id)
         setMessage('')
+        setTimeout(() => setFlyPlane(null), 260)
         setTimeout(() => setBounceId(null), 600)
         setTimeout(() => { setDeliveredTo(null); setPhase('idle') }, 2000)
       }
@@ -221,7 +222,7 @@ export default function App() {
 
       {/* Plane that flies to the card after release */}
       {flyPlane && (
-        <div className="plane-fly" style={{
+        <div className={`plane-fly${flyPlane.leaving ? ' plane-fly--leaving' : ''}`} style={{
           left: flyPlane.x, top: flyPlane.y,
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
         }}>
