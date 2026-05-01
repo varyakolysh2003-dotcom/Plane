@@ -53,8 +53,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 32px 44px 26px;
+  gap: 22px;
+  padding: 44px 44px 36px;
   min-width: 190px;
   background: #fff;
   border-radius: 28px;
@@ -85,18 +85,18 @@
 }
 
 .avatar {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 32px;
+  font-size: 36px;
 }
 
 .uname {
-  font-size: 17px;
+  font-size: 18px;
   color: #888;
   font-weight: 500;
   white-space: nowrap;
