@@ -143,23 +143,34 @@ export default function App() {
     setPhase('flying')
 
     const start = performance.now()
-    const DURATION = 700
+    const DURATION    = 700
+    const VANISH_AT   = 0.80  // start fade at 80% — easeInOut puts plane at ~97% of distance
+    const VANISH_MS   = 300   // fade duration
+    let   vanishDone  = false
 
     function loop(now) {
       const raw = Math.min((now - start) / DURATION, 1)
       const t   = easeInOut(raw)
       const pt  = qbPt(p0, ctrl, p2, t)
-      setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle })
+
+      if (raw >= VANISH_AT && !vanishDone) {
+        vanishDone = true
+        // Freeze at current position and start the vanish animation
+        setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle, leaving: true })
+      } else if (!vanishDone) {
+        setFlyPlane({ x: pt.x, y: pt.y, angle: flightAngle })
+      }
+
       if (raw < 1) {
         animRef.current = requestAnimationFrame(loop)
       } else {
-        // Arrived — play exit animation before removing from DOM
-        setFlyPlane(prev => ({ ...prev, leaving: true }))
+        // Plane is already fading — trigger card bounce and cleanup
+        const remaining = VANISH_MS - DURATION * (1 - VANISH_AT)
         setPhase('delivered')
         setDeliveredTo(targetUser)
         setBounceId(targetUser.id)
         setMessage('')
-        setTimeout(() => setFlyPlane(null), 260)
+        setTimeout(() => setFlyPlane(null), Math.max(remaining, 0))
         setTimeout(() => setBounceId(null), 600)
         setTimeout(() => { setDeliveredTo(null); setPhase('idle') }, 2000)
       }
@@ -231,7 +242,7 @@ export default function App() {
           transform: `translate(-50%,-50%) rotate(${flyPlane.angle}deg)`,
           // Inline animation overrides the CSS rule so it always wins over plane-appear
           animation: flyPlane.leaving
-            ? 'plane-vanish 0.28s cubic-bezier(0.4,0,1,1) both'
+            ? 'plane-vanish 0.30s cubic-bezier(0.4,0,1,1) both'
             : undefined,
         }}>
           <PlaneIcon size={34} />
