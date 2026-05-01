@@ -159,7 +159,6 @@ export default function App() {
   }
 
   // Derived values for rendering
-  const planeX = btnCenterRef.current.x + dragDelta.x
   const dragDist = Math.hypot(dragDelta.x, dragDelta.y)
   // Scale grows from 1× up to 1.8× as user drags further
   const planeScale = 1 + Math.min(dragDist / 60, 0.8)
