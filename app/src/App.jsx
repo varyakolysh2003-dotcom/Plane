@@ -19,33 +19,37 @@ function PaperPlane({ style }) {
 }
 
 const USERS = [
-  { id: 1, name: 'Alex',   initials: 'A', bg: '#ede9fe', fg: '#6d28d9', tilt: -3   },
-  { id: 2, name: 'Sam',    initials: 'S', bg: '#dbeafe', fg: '#1d4ed8', tilt:  2   },
-  { id: 3, name: 'Jordan', initials: 'J', bg: '#dcfce7', fg: '#15803d', tilt: -0.8 },
+  { id: 1, name: 'Алексей', initials: 'А', bg: '#ede9fe', fg: '#6d28d9', tilt: -4 },
+  { id: 2, name: 'Мария',   initials: 'М', bg: '#fce7f3', fg: '#be185d', tilt:  2 },
+  { id: 3, name: 'Саша',    initials: 'С', bg: '#dbeafe', fg: '#1d4ed8', tilt: -2 },
+  { id: 4, name: 'Никита',  initials: 'Н', bg: '#dcfce7', fg: '#15803d', tilt:  4 },
 ]
 
 function UserCard({ user, index }) {
   return (
+    // Outer wrapper holds the tilt — isolated from the hover animation
     <div
-      className="user-card"
+      className="user-card-tilt"
       style={{
-        '--tilt':  `${user.tilt}deg`,
-        '--delay': `${index * 0.09}s`,
+        transform: `rotate(${user.tilt}deg)`,
+        animationDelay: `${index * 0.07}s`,
       }}
     >
-      <div className="user-avatar" style={{ background: user.bg, color: user.fg }}>
-        {user.initials}
+      <div className="user-card">
+        <div className="user-avatar" style={{ background: user.bg, color: user.fg }}>
+          {user.initials}
+        </div>
+        <span className="user-name">{user.name}</span>
       </div>
-      <span className="user-name">{user.name}</span>
     </div>
   )
 }
 
 export default function App() {
-  const [message, setMessage]   = useState('')
-  const [drag, setDrag]         = useState(null)
-  const buttonRef               = useRef(null)
-  const originRef               = useRef(null)
+  const [message, setMessage] = useState('')
+  const [drag, setDrag]       = useState(null)
+  const buttonRef             = useRef(null)
+  const originRef             = useRef(null)
 
   function handleSend() {
     if (message.trim()) setMessage('')
@@ -60,7 +64,7 @@ export default function App() {
 
   function handlePointerMove(e) {
     if (!originRef.current) return
-    const MAX = 52
+    const MAX = 55
     const dx  = e.clientX - originRef.current.x
     const dy  = e.clientY - originRef.current.y
     setDrag({
@@ -71,17 +75,18 @@ export default function App() {
 
   function handlePointerUp() {
     if (!originRef.current) return
-    const { x, y }  = drag
+    const { x, y } = drag
     originRef.current = null
     setDrag(null)
     if (Math.hypot(x, y) > 28) handleSend()
   }
 
-  const isDragging   = drag !== null
-  // Plane nose points upper-right by default (~−45°). Rotate so it faces drag direction.
-  const planeAngle   = isDragging ? Math.atan2(drag.y, drag.x) * (180 / Math.PI) + 45 : 0
-  const planeX       = isDragging ? drag.x * 0.42 : 0
-  const planeY       = isDragging ? drag.y * 0.42 : 0
+  const isDragging = drag !== null
+
+  // SVG plane nose points upper-right (~-45°). Add 45° offset so it aligns with drag angle.
+  const planeAngle = isDragging ? Math.atan2(drag.y, drag.x) * (180 / Math.PI) + 45 : 0
+  const planeX     = isDragging ? drag.x * 0.45 : 0
+  const planeY     = isDragging ? drag.y * 0.45 : 0
 
   return (
     <div className="app">
@@ -116,10 +121,8 @@ export default function App() {
             <PaperPlane
               style={{
                 transform:  `translate(${planeX}px, ${planeY}px) rotate(${planeAngle}deg)`,
-                transition: isDragging
-                  ? 'none'
-                  : 'transform 0.38s cubic-bezier(0.34, 1.45, 0.64, 1)',
-                color: isDragging ? '#1a1a1a' : 'currentColor',
+                transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.5, 0.64, 1)',
+                color:      isDragging ? '#1a1a1a' : 'currentColor',
               }}
             />
           </button>
